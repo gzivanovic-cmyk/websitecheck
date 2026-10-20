@@ -7,9 +7,10 @@
 //   bijvoorbeeld: node sync.js ../websitecheck-motor/uit --push
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), { execSync } = require('child_process');
 const HIER = __dirname, ITER = 310000;
+// wachtwoord: uit de beveiligde opslag van de bot (WEBSITECHECK_PASSWORD) of uit .password
 const pwf = path.join(HIER, '.password');
-if (!fs.existsSync(pwf)) { console.error('.password ontbreekt: vraag Goran om het wachtwoord van het overzicht'); process.exit(1); }
-const pw = fs.readFileSync(pwf, 'utf8').trim();
+const pw = (process.env.WEBSITECHECK_PASSWORD || (fs.existsSync(pwf) ? fs.readFileSync(pwf, 'utf8') : '')).trim();
+if (!pw) { console.error('Geen wachtwoord: zet WEBSITECHECK_PASSWORD of .password (vraag Goran)'); process.exit(1); }
 
 function versleutel(obj) {
   const salt = crypto.randomBytes(16), iv = crypto.randomBytes(12);
