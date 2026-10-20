@@ -56,6 +56,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 16px 60px; }
 .bron { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; letter-spacing: .02em; }
 .bron.go4it { background: var(--cobalt-soft); color: var(--cobalt); }
 .bron.ais { background: #E8E6F5; color: var(--navy); }
+.st { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.st.ok { background: var(--goed-bg); color: var(--goed); } .st.open { background: var(--beter-bg); color: var(--beter); }
 .tops { font-size: 13px; color: var(--ink); display: grid; gap: 2px; }
 .tops span::before { content: '•'; color: var(--muted); margin-right: 6px; }
 .knoppen { display: flex; flex-direction: column; gap: 6px; }
@@ -107,6 +109,7 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
     <div class="kpis" id="kpis"></div>
     <div class="tools">
       <div class="seg" id="fbron"><button data-v="alle" class="aan">Alle</button><button data-v="go4it">GO 4IT</button><button data-v="ais">AIS</button></div>
+      <div class="seg" id="fstat"><button data-v="alle" class="aan">Alles</button><button data-v="open">Nog versturen</button><button data-v="ok">Verstuurd</button></div>
       <input class="zoek" id="q" type="search" placeholder="Zoek op bedrijf, naam of website" aria-label="Zoeken">
     </div>
     <div id="lijst"></div>
@@ -117,7 +120,7 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
 
 <script>
 (function () {
-  var sleutelPw = null, data = [], filter = 'alle';
+  var sleutelPw = null, data = [], filter = 'alle', fstat = 'alle';
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var b64 = function (s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
@@ -140,24 +143,27 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
       '<circle cx="32" cy="32" r="26" fill="none" stroke="' + k[0] + '" stroke-width="7" stroke-linecap="round" stroke-dasharray="' + d.toFixed(1) + ' ' + om.toFixed(1) + '" transform="rotate(-90 32 32)"/>' +
       '<text x="32" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="' + k[0] + '" font-family="PJS, system-ui">' + String(c).replace('.', ',') + '</text></svg>';
   }
+  function status(c) { return c.verstuurd ? '<span class="st ok">✓ Verstuurd ' + esc(c.verstuurd.split('-').reverse().join('-')) + '</span>' : '<span class="st open">Nog versturen</span>'; }
   var LABEL = { goed: 'Goed', beter: 'Kan beter', actie: 'Actie nodig', nakijken: 'Niet bekeken' };
 
   function toon() {
     var q = $('q').value.toLowerCase().trim();
     var rijen = data.filter(function (c) {
       if (filter !== 'alle' && c.bron !== filter) return false;
+      if (fstat === 'open' && c.verstuurd) return false;
+      if (fstat === 'ok' && !c.verstuurd) return false;
       return !q || [c.bedrijf, c.naam, c.host, c.mail].join(' ').toLowerCase().indexOf(q) !== -1;
     });
     var week = Date.now() - 7 * 864e5;
     var gem = data.length ? (data.reduce(function (s, c) { return s + (c.cijfer || 0); }, 0) / data.length) : 0;
-    $('kpis').innerHTML = [[data.length, 'aanvragen in totaal'], [data.filter(function (c) { return new Date(c.datum.replace(' ', 'T')) > week; }).length, 'deze week'],
+    $('kpis').innerHTML = [[data.length, 'aanvragen in totaal'], [data.filter(function (c) { return !c.verstuurd; }).length, 'nog te versturen'],
       [data.length ? gem.toFixed(1).replace('.', ',') : '–', 'gemiddeld cijfer'], [data.filter(function (c) { return c.bron === 'go4it'; }).length + ' / ' + data.filter(function (c) { return c.bron === 'ais'; }).length, 'GO 4IT / AIS']]
       .map(function (k) { return '<div class="kpi"><b>' + k[0] + '</b><span>' + k[1] + '</span></div>'; }).join('');
     if (!rijen.length) { $('lijst').innerHTML = '<div class="leeg">' + (data.length ? 'Niets gevonden met dit filter.' : 'Nog geen websitechecks. Zodra er een aanvraag binnenkomt, staat hij hier.') + '</div>'; return; }
     $('lijst').innerHTML = rijen.map(function (c) {
       return '<article class="kaart" data-id="' + esc(c.id) + '">' + ring(c.cijfer) +
         '<div class="kt"><h3>' + esc(c.bedrijf || c.host) + '</h3><div class="meta"><span class="bron ' + c.bron + '">' + (c.bron === 'ais' ? 'AIS-Groep' : 'GO 4IT') + '</span>' +
-        '<span>' + esc(c.datum) + '</span><span>' + esc(c.host) + '</span>' + (c.naam ? '<span>' + esc(c.naam) + '</span>' : '') + '</div>' +
+        '<span>' + esc(c.datum) + '</span><span>' + esc(c.host) + '</span>' + (c.naam ? '<span>' + esc(c.naam) + '</span>' : '') + status(c) + '</div>' +
         '<div class="tops">' + (c.top || []).map(function (t) { return '<span>' + esc(t.kort) + '</span>'; }).join('') + '</div></div>' +
         '<div class="knoppen"><button class="knop" data-pdf="' + esc(c.id) + '">Rapport</button><button class="knop licht" data-open="' + esc(c.id) + '">Details</button></div></article>';
     }).join('');
@@ -175,17 +181,17 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
     $('paneel').innerHTML = '<p>Openen…</p>'; $('detail').classList.remove('verborgen');
     var it = await laadItem(id), s = it.samenvatting, cm = s.conceptmail || {};
     var naar = s.mail || '';
-    var mailto = naar ? 'mailto:' + encodeURIComponent(naar) + '?subject=' + encodeURIComponent(cm.onderwerp || '') + '&body=' + encodeURIComponent(cm.tekst || '') : '';
+    var mailto = naar ? 'mailto:' + encodeURIComponent(naar) + '?bcc=' + encodeURIComponent('g.zivanovic@mail.grokbot.com') + '&subject=' + encodeURIComponent(cm.onderwerp || '') + '&body=' + encodeURIComponent(cm.tekst || '') : '';
     var psi = s.psi || {}, ps = '';
     ['mobiel', 'computer'].forEach(function (k) { var d = psi[k]; if (d) ps += '<div class="rij"><span>PageSpeed ' + (k === 'mobiel' ? 'telefoon' : 'computer') + '</span><span>prestaties ' + d.score + ' · SEO ' + d.seo + '</span></div>'; });
-    $('paneel').innerHTML = '<div class="pk">' + ring(s.cijfer) + '<div><h2>' + esc(s.bedrijf || s.host) + '</h2><div class="meta"><span class="bron ' + s.bron + '">' + (s.bron === 'ais' ? 'AIS-Groep' : 'GO 4IT') + '</span><span>' + esc(s.datum) + '</span></div></div><button class="ib sluit" id="sluit">Sluiten</button></div>' +
+    $('paneel').innerHTML = '<div class="pk">' + ring(s.cijfer) + '<div><h2>' + esc(s.bedrijf || s.host) + '</h2><div class="meta"><span class="bron ' + s.bron + '">' + (s.bron === 'ais' ? 'AIS-Groep' : 'GO 4IT') + '</span><span>' + esc(s.datum) + '</span>' + status(c || s) + '</div></div><button class="ib sluit" id="sluit">Sluiten</button></div>' +
       '<div class="blok"><h4>Aanvrager</h4><dl class="gegevens"><dt>Naam</dt><dd>' + esc(s.naam || '–') + '</dd><dt>E-mail</dt><dd>' + (s.mail ? '<a href="mailto:' + esc(s.mail) + '">' + esc(s.mail) + '</a>' : '–') + '</dd>' +
       '<dt>Telefoon</dt><dd>' + (s.telefoon ? '<a href="tel:' + esc(s.telefoon) + '">' + esc(s.telefoon) + '</a>' : '–') + '</dd><dt>Website</dt><dd><a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.host) + '</a></dd>' +
       (s.vraag ? '<dt>Vraag</dt><dd>' + esc(s.vraag) + '</dd>' : '') + (s.klant_ais ? '<dt>Klant AIS</dt><dd>' + esc(s.klant_ais) + '</dd>' : '') + '</dl></div>' +
       '<div class="blok"><h4>Uitkomst</h4>' + (s.onderdelen || []).map(function (o) { return '<div class="rij"><div>' + esc(o.titel) + '<small>' + esc(o.kort) + '</small></div><span class="pil ' + o.status + '">' + LABEL[o.status] + '</span></div>'; }).join('') + ps + '</div>' +
       '<div class="blok"><h4>Conceptmail aan de klant</h4><pre class="mail" id="cmail">Onderwerp: ' + esc(cm.onderwerp) + '\n\n' + esc(cm.tekst) + '</pre>' +
       '<div class="rk"><button class="knop" id="kopie">Kopieer tekst</button>' + (mailto ? '<a class="knop licht" href="' + mailto + '">Open in Mail</a>' : '') + '<button class="knop licht" data-pdf="' + esc(id) + '">Rapport (PDF)</button></div>' +
-      '<p class="slot" style="text-align:left">Lees het rapport even na, zet de PDF als bijlage bij de mail en verstuur hem zelf.</p></div>';
+      '<p class="slot" style="text-align:left">Lees het rapport even na, zet de PDF als bijlage bij de mail en verstuur hem zelf. Via “Open in Mail” staat de BCC naar je Grok-adres er al bij: de bot zet de check dan vanzelf op verstuurd. Vergeten? Zeg het tegen de bot in Grok.</p></div>';
     $('sluit').onclick = function () { $('detail').classList.add('verborgen'); };
     $('kopie').onclick = function () { navigator.clipboard.writeText($('cmail').textContent).then(function () { $('kopie').textContent = 'Gekopieerd'; }); };
   }
@@ -204,6 +210,7 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
   });
   $('uit').onclick = function () { sleutelPw = null; data = []; $('app').classList.add('verborgen'); $('login').classList.remove('verborgen'); $('lijst').innerHTML = ''; $('lfout').textContent = ''; };
   $('q').addEventListener('input', toon);
+  $('fstat').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; fstat = b.dataset.v; this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('aan', x === b); }); toon(); });
   $('fbron').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; filter = b.dataset.v; this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('aan', x === b); }); toon(); });
   document.addEventListener('click', function (e) {
     var p = e.target.closest('[data-pdf]'); if (p) { e.stopPropagation(); openPdf(p.dataset.pdf); return; }

@@ -3,6 +3,7 @@
 // In de repository komt NOOIT iets onversleuteld: uit/, private/, .password en .psi_key staan in .gitignore.
 //
 // Gebruik: node sync.js <map met uit/<id>/-mappen van de checkmachine> [--push]
+//          node sync.js --verstuurd <website of id> [--datum JJJJ-MM-DD] [--push]   (rapport is naar de klant gemaild)
 //   bijvoorbeeld: node sync.js ../websitecheck-motor/uit --push
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), { execSync } = require('child_process');
 const HIER = __dirname, ITER = 310000;
@@ -33,7 +34,8 @@ if (fs.existsSync(lijstF)) {
   catch (e) { console.error('Bestaande lijst niet te openen: klopt het wachtwoord in .password?'); process.exit(1); }
 }
 const bekend = new Set(lijst.map(c => c.id));
-const uit = path.resolve(process.argv.slice(2).find(a => !a.startsWith('--')) || path.join(HIER, 'uit'));
+const pos = process.argv.slice(2).filter((a, i, arr) => !a.startsWith('--') && !['--verstuurd', '--datum'].includes(arr[i - 1]));
+const uit = path.resolve(pos[0] || path.join(HIER, 'uit'));
 let nieuw = 0;
 for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
   const rf = path.join(uit, id, 'resultaat.json'), pf = path.join(uit, id, 'rapport.pdf');
@@ -43,6 +45,16 @@ for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
   if (!s.id) continue;  // alleen rapporten van verwerk.py (echte aanvragen), geen losse testrapporten
   fs.writeFileSync(path.join(dataDir, id + '.enc'), versleutel({ id, samenvatting: s, oordeel: r.oordeel, pdf: fs.readFileSync(pf).toString('base64') }));
   lijst.push(s); nieuw++;
+}
+// verstuurd registreren: node sync.js --verstuurd <website of id> [--datum JJJJ-MM-DD]
+const vi = process.argv.indexOf('--verstuurd');
+if (vi !== -1) {
+  const wie = (process.argv[vi + 1] || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+  const di = process.argv.indexOf('--datum'), datum = di !== -1 ? process.argv[di + 1] : new Date().toISOString().slice(0, 10);
+  const kandidaten = lijst.filter(c => c.id === wie || (c.host || '').toLowerCase() === wie).sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+  if (!kandidaten.length) { console.error('Geen check gevonden voor ' + wie); process.exit(2); }
+  kandidaten[0].verstuurd = datum;
+  console.log(`Gemarkeerd als verstuurd: ${kandidaten[0].bedrijf || kandidaten[0].host} (${datum})`);
 }
 lijst.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
 fs.writeFileSync(lijstF, versleutel({ bijgewerkt: new Date().toISOString(), checks: lijst }));
