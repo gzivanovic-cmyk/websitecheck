@@ -63,6 +63,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 22px 16px 60px; }
 .knoppen { display: flex; flex-direction: column; gap: 6px; }
 .knop { border: 0; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; background: var(--ink); color: var(--bg); white-space: nowrap; text-decoration: none; text-align: center; }
 .knop.licht { background: var(--soft); color: var(--ink); }
+.blok .knop.licht { background: var(--card); border: 1px solid var(--line); padding: 9px 16px; }
+.blok .knop.licht:hover { border-color: var(--cobalt); color: var(--cobalt); }
 /* detail */
 #detail { position: fixed; inset: 0; z-index: 10; background: rgba(11,16,32,.45); display: flex; justify-content: flex-end; }
 .paneel { width: min(620px, 100%); height: 100%; overflow-y: auto; background: var(--bg); padding: 22px 22px 60px; }
@@ -182,6 +184,8 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
     var it = await laadItem(id), s = it.samenvatting, cm = (s.klantlink && s.klantmail) || s.conceptmail || {};
     var naar = s.mail || '';
     var mailto = naar ? 'mailto:' + encodeURIComponent(naar) + '?bcc=' + encodeURIComponent('g.zivanovic@mail.grokbot.com') + '&subject=' + encodeURIComponent(cm.onderwerp || '') + '&body=' + encodeURIComponent(cm.tekst || '') : '';
+    // opdracht aan de bot via een mail van Goran zelf (de bot kijkt naar de afzender): verwijder of opnieuw
+    var actie = function (soort, tekst) { return 'mailto:g.zivanovic@mail.grokbot.com?subject=' + encodeURIComponent('Websitecheck-actie: ' + soort + ' ' + s.id) + '&body=' + encodeURIComponent(tekst); };
     var psi = s.psi || {}, ps = '';
     ['mobiel', 'computer'].forEach(function (k) { var d = psi[k]; if (d) ps += '<div class="rij"><span>PageSpeed ' + (k === 'mobiel' ? 'telefoon' : 'computer') + '</span><span>prestaties ' + d.score + ' · SEO ' + d.seo + '</span></div>'; });
     $('paneel').innerHTML = '<div class="pk">' + ring(s.cijfer) + '<div><h2>' + esc(s.bedrijf || s.host) + '</h2><div class="meta"><span class="bron ' + s.bron + '">' + (s.bron === 'ais' ? 'AIS-Groep' : 'GO 4IT') + '</span><span>' + esc(s.datum) + '</span>' + status(c || s) + '</div></div><button class="ib sluit" id="sluit">Sluiten</button></div>' +
@@ -194,12 +198,25 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
           '<p class="slot" style="text-align:left">Alleen wie deze link heeft, kan de pagina openen. Online tot ' + esc((s.klantlink_verloopt || '').split('-').reverse().join('-')) + '.</p>' +
           '<div class="rk"><button class="knop licht" id="kopielink">Kopieer link</button></div></div>'
         : '<div class="blok"><h4>Klantpagina</h4><p class="slot" style="text-align:left">Deze check heeft (nog) geen klantpagina. Wil je er een? Zeg “klantpagina ' + esc(s.bedrijf || s.host) + '” tegen de bot in Grok.</p></div>') +
+      '<div class="blok"><h4>Niet tevreden?</h4><p class="slot" style="text-align:left;margin-top:0">Een klik opent een mail aan je bot. Klik daarin op Versturen; de bot doet de rest en meldt het in Grok. Hij voert dit alleen uit als de mail van jouw eigen adres komt.</p><div class="rk">' +
+        (s.klantlink ? '<a class="knop licht" data-actie="verwijder" href="' + actie('verwijder', 'Haal de klantpagina van ' + (s.bedrijf || s.host) + ' (' + s.host + ') offline. Check ' + s.id + '.') + '">Klantpagina offline halen</a>' : '') +
+        '<a class="knop licht" data-actie="opnieuw" href="' + actie('opnieuw', 'Doe de websitecheck van ' + (s.bedrijf || s.host) + ' (' + s.host + ') opnieuw en haal de oude klantpagina offline. Check ' + s.id + '.') + '">Opnieuw laten checken</a></div><p class="slot" id="actienoot" style="text-align:left" hidden></p></div>' +
       '<div class="blok"><h4>Conceptmail aan de klant</h4><pre class="mail" id="cmail">Onderwerp: ' + esc(cm.onderwerp) + '\n\n' + esc(cm.tekst) + '</pre>' +
       '<div class="rk"><button class="knop" id="kopie">Kopieer tekst</button>' + (mailto ? '<a class="knop licht" href="' + mailto + '">Open in Mail</a>' : '') + '<button class="knop licht" data-pdf="' + esc(id) + '">Rapport (PDF)</button></div>' +
-      '<p class="slot" style="text-align:left">' + (s.klantlink ? 'Lees het rapport na en stuur de klant alleen de link: daarmee keur je het goed. De PDF staat op de klantpagina. Niet tevreden? Zeg “verwijder ' + esc(s.bedrijf || s.host) + '” tegen de bot. ' : 'Lees het rapport even na. ') +
+      '<p class="slot" style="text-align:left">' + (s.klantlink ? 'Lees het rapport na en stuur de klant alleen de link: daarmee keur je het goed. De PDF staat op de klantpagina. Niet tevreden? Gebruik de knoppen hierboven. ' : 'Lees het rapport even na. ') +
       'Via “Open in Mail” staat de BCC naar je Grok-adres er al bij: de bot zet de check dan vanzelf op verstuurd. Vergeten? Zeg het tegen de bot in Grok.</p></div>';
     $('sluit').onclick = function () { $('detail').classList.add('verborgen'); };
     $('kopie').onclick = function () { navigator.clipboard.writeText($('cmail').textContent).then(function () { $('kopie').textContent = 'Gekopieerd'; }); };
+    // na een klik: laten zien wat er gebeurt, en wat Goran kan doen als zijn mailprogramma niet opent
+    document.querySelectorAll('#paneel a[data-actie]').forEach(function (a) {
+      a.addEventListener('click', function () {
+        var onderwerp = 'Websitecheck-actie: ' + a.dataset.actie + ' ' + s.id, noot = $('actienoot');
+        noot.hidden = false;
+        noot.innerHTML = 'Je mailprogramma opent nu met een kant-en-klare mail aan je bot; klik daarin op Versturen. Gebeurt er niets? Stuur dan zelf een mail naar <b>g.zivanovic@mail.grokbot.com</b> met als onderwerp <b>' + esc(onderwerp) + '</b>. ' +
+          '<button class="knop licht" type="button" id="kopieactie">Kopieer onderwerp</button>';
+        $('kopieactie').onclick = function () { navigator.clipboard.writeText(onderwerp).then(function () { $('kopieactie').textContent = 'Gekopieerd'; }); };
+      });
+    });
     if ($('kopielink')) $('kopielink').onclick = function () { navigator.clipboard.writeText(s.klantlink).then(function () { $('kopielink').textContent = 'Gekopieerd'; }); };
   }
 
