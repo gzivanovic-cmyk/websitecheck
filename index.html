@@ -143,7 +143,7 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
       '<circle cx="32" cy="32" r="26" fill="none" stroke="' + k[0] + '" stroke-width="7" stroke-linecap="round" stroke-dasharray="' + d.toFixed(1) + ' ' + om.toFixed(1) + '" transform="rotate(-90 32 32)"/>' +
       '<text x="32" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="' + k[0] + '" font-family="PJS, system-ui">' + String(c).replace('.', ',') + '</text></svg>';
   }
-  function status(c) { return c.verstuurd ? '<span class="st ok">✓ Verstuurd ' + esc(c.verstuurd.split('-').reverse().join('-')) + '</span>' : (c.klantlink ? '<span class="st open">Klantlink klaar, nog versturen</span>' : '<span class="st open">Nog goedkeuren</span>'); }
+  function status(c) { return c.verstuurd ? '<span class="st ok">✓ Verstuurd ' + esc(c.verstuurd.split('-').reverse().join('-')) + '</span>' : '<span class="st open">Nog versturen</span>'; }
   var LABEL = { goed: 'Goed', beter: 'Kan beter', actie: 'Actie nodig', nakijken: 'Niet bekeken' };
 
   function toon() {
@@ -193,10 +193,10 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
         ? '<div class="blok"><h4>Klantpagina</h4><p style="word-break:break-all"><a href="' + esc(s.klantlink) + '" target="_blank" rel="noopener">' + esc(s.klantlink) + '</a></p>' +
           '<p class="slot" style="text-align:left">Alleen wie deze link heeft, kan de pagina openen. Online tot ' + esc((s.klantlink_verloopt || '').split('-').reverse().join('-')) + '.</p>' +
           '<div class="rk"><button class="knop licht" id="kopielink">Kopieer link</button></div></div>'
-        : '<div class="blok"><h4>Klantpagina</h4><p class="slot" style="text-align:left">Nog niet goedgekeurd. Tevreden? Zeg “goedkeuren ' + esc(s.bedrijf || s.host) + '” tegen de bot in Grok. Je krijgt dan de klantlink en de mailtekst, en ze komen ook hier te staan.</p></div>') +
+        : '<div class="blok"><h4>Klantpagina</h4><p class="slot" style="text-align:left">Deze check heeft (nog) geen klantpagina. Wil je er een? Zeg “klantpagina ' + esc(s.bedrijf || s.host) + '” tegen de bot in Grok.</p></div>') +
       '<div class="blok"><h4>Conceptmail aan de klant</h4><pre class="mail" id="cmail">Onderwerp: ' + esc(cm.onderwerp) + '\n\n' + esc(cm.tekst) + '</pre>' +
       '<div class="rk"><button class="knop" id="kopie">Kopieer tekst</button>' + (mailto ? '<a class="knop licht" href="' + mailto + '">Open in Mail</a>' : '') + '<button class="knop licht" data-pdf="' + esc(id) + '">Rapport (PDF)</button></div>' +
-      '<p class="slot" style="text-align:left">' + (s.klantlink ? 'De klant krijgt alleen de link; de PDF staat op de klantpagina. ' : 'Lees het rapport even na voordat je het goedkeurt. ') +
+      '<p class="slot" style="text-align:left">' + (s.klantlink ? 'Lees het rapport na en stuur de klant alleen de link: daarmee keur je het goed. De PDF staat op de klantpagina. Niet tevreden? Zeg “verwijder ' + esc(s.bedrijf || s.host) + '” tegen de bot. ' : 'Lees het rapport even na. ') +
       'Via “Open in Mail” staat de BCC naar je Grok-adres er al bij: de bot zet de check dan vanzelf op verstuurd. Vergeten? Zeg het tegen de bot in Grok.</p></div>';
     $('sluit').onclick = function () { $('detail').classList.add('verborgen'); };
     $('kopie').onclick = function () { navigator.clipboard.writeText($('cmail').textContent).then(function () { $('kopie').textContent = 'Gekopieerd'; }); };

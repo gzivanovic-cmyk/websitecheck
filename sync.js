@@ -45,7 +45,7 @@ for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
   const s = r.samenvatting || {};
   if (!s.id) continue;  // alleen rapporten van verwerk.py (echte aanvragen), geen losse testrapporten
   const oud = lijst.find(c => c.id === id);
-  if (oud && (!s.klantlink || oud.klantlink === s.klantlink)) continue;  // al bekend en niets nieuws (de klantlink komt na goedkeuren)
+  if (oud && (oud.klantlink || '') === (s.klantlink || '')) continue;  // al bekend en niets nieuws (klantlink erbij of verwijderd)
   fs.writeFileSync(path.join(dataDir, id + '.enc'), versleutel({ id, samenvatting: s, oordeel: r.oordeel, pdf: fs.readFileSync(pf).toString('base64') }));
   if (oud) { Object.assign(oud, s, { verstuurd: oud.verstuurd }); } else { lijst.push(s); nieuw++; }
 }
