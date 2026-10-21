@@ -40,12 +40,14 @@ const uit = path.resolve(pos[0] || path.join(HIER, 'uit'));
 let nieuw = 0;
 for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
   const rf = path.join(uit, id, 'resultaat.json'), pf = path.join(uit, id, 'rapport.pdf');
-  if (bekend.has(id) || !fs.existsSync(rf) || !fs.existsSync(pf)) continue;
+  if (!fs.existsSync(rf) || !fs.existsSync(pf)) continue;
   const r = JSON.parse(fs.readFileSync(rf, 'utf8'));
   const s = r.samenvatting || {};
   if (!s.id) continue;  // alleen rapporten van verwerk.py (echte aanvragen), geen losse testrapporten
+  const oud = lijst.find(c => c.id === id);
+  if (oud && (!s.klantlink || oud.klantlink === s.klantlink)) continue;  // al bekend en niets nieuws (de klantlink komt na goedkeuren)
   fs.writeFileSync(path.join(dataDir, id + '.enc'), versleutel({ id, samenvatting: s, oordeel: r.oordeel, pdf: fs.readFileSync(pf).toString('base64') }));
-  lijst.push(s); nieuw++;
+  if (oud) { Object.assign(oud, s, { verstuurd: oud.verstuurd }); } else { lijst.push(s); nieuw++; }
 }
 // verstuurd registreren: node sync.js --verstuurd <website of id> [--datum JJJJ-MM-DD]
 const vi = process.argv.indexOf('--verstuurd');

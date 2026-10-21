@@ -143,7 +143,7 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
       '<circle cx="32" cy="32" r="26" fill="none" stroke="' + k[0] + '" stroke-width="7" stroke-linecap="round" stroke-dasharray="' + d.toFixed(1) + ' ' + om.toFixed(1) + '" transform="rotate(-90 32 32)"/>' +
       '<text x="32" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="' + k[0] + '" font-family="PJS, system-ui">' + String(c).replace('.', ',') + '</text></svg>';
   }
-  function status(c) { return c.verstuurd ? '<span class="st ok">✓ Verstuurd ' + esc(c.verstuurd.split('-').reverse().join('-')) + '</span>' : '<span class="st open">Nog versturen</span>'; }
+  function status(c) { return c.verstuurd ? '<span class="st ok">✓ Verstuurd ' + esc(c.verstuurd.split('-').reverse().join('-')) + '</span>' : (c.klantlink ? '<span class="st open">Klantlink klaar, nog versturen</span>' : '<span class="st open">Nog goedkeuren</span>'); }
   var LABEL = { goed: 'Goed', beter: 'Kan beter', actie: 'Actie nodig', nakijken: 'Niet bekeken' };
 
   function toon() {
@@ -179,7 +179,7 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
   async function openDetail(id) {
     var c = data.find(function (x) { return x.id === id; });
     $('paneel').innerHTML = '<p>Openen…</p>'; $('detail').classList.remove('verborgen');
-    var it = await laadItem(id), s = it.samenvatting, cm = s.conceptmail || {};
+    var it = await laadItem(id), s = it.samenvatting, cm = (s.klantlink && s.klantmail) || s.conceptmail || {};
     var naar = s.mail || '';
     var mailto = naar ? 'mailto:' + encodeURIComponent(naar) + '?bcc=' + encodeURIComponent('g.zivanovic@mail.grokbot.com') + '&subject=' + encodeURIComponent(cm.onderwerp || '') + '&body=' + encodeURIComponent(cm.tekst || '') : '';
     var psi = s.psi || {}, ps = '';
@@ -189,11 +189,18 @@ pre.mail { white-space: pre-wrap; font: inherit; font-size: 14px; background: va
       '<dt>Telefoon</dt><dd>' + (s.telefoon ? '<a href="tel:' + esc(s.telefoon) + '">' + esc(s.telefoon) + '</a>' : '–') + '</dd><dt>Website</dt><dd><a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.host) + '</a></dd>' +
       (s.vraag ? '<dt>Vraag</dt><dd>' + esc(s.vraag) + '</dd>' : '') + (s.klant_ais ? '<dt>Klant AIS</dt><dd>' + esc(s.klant_ais) + '</dd>' : '') + '</dl></div>' +
       '<div class="blok"><h4>Uitkomst</h4>' + (s.onderdelen || []).map(function (o) { return '<div class="rij"><div>' + esc(o.titel) + '<small>' + esc(o.kort) + '</small></div><span class="pil ' + o.status + '">' + LABEL[o.status] + '</span></div>'; }).join('') + ps + '</div>' +
+      (s.klantlink
+        ? '<div class="blok"><h4>Klantpagina</h4><p style="word-break:break-all"><a href="' + esc(s.klantlink) + '" target="_blank" rel="noopener">' + esc(s.klantlink) + '</a></p>' +
+          '<p class="slot" style="text-align:left">Alleen wie deze link heeft, kan de pagina openen. Online tot ' + esc((s.klantlink_verloopt || '').split('-').reverse().join('-')) + '.</p>' +
+          '<div class="rk"><button class="knop licht" id="kopielink">Kopieer link</button></div></div>'
+        : '<div class="blok"><h4>Klantpagina</h4><p class="slot" style="text-align:left">Nog niet goedgekeurd. Tevreden? Zeg “goedkeuren ' + esc(s.bedrijf || s.host) + '” tegen de bot in Grok. Je krijgt dan de klantlink en de mailtekst, en ze komen ook hier te staan.</p></div>') +
       '<div class="blok"><h4>Conceptmail aan de klant</h4><pre class="mail" id="cmail">Onderwerp: ' + esc(cm.onderwerp) + '\n\n' + esc(cm.tekst) + '</pre>' +
       '<div class="rk"><button class="knop" id="kopie">Kopieer tekst</button>' + (mailto ? '<a class="knop licht" href="' + mailto + '">Open in Mail</a>' : '') + '<button class="knop licht" data-pdf="' + esc(id) + '">Rapport (PDF)</button></div>' +
-      '<p class="slot" style="text-align:left">Lees het rapport even na, zet de PDF als bijlage bij de mail en verstuur hem zelf. Via “Open in Mail” staat de BCC naar je Grok-adres er al bij: de bot zet de check dan vanzelf op verstuurd. Vergeten? Zeg het tegen de bot in Grok.</p></div>';
+      '<p class="slot" style="text-align:left">' + (s.klantlink ? 'De klant krijgt alleen de link; de PDF staat op de klantpagina. ' : 'Lees het rapport even na voordat je het goedkeurt. ') +
+      'Via “Open in Mail” staat de BCC naar je Grok-adres er al bij: de bot zet de check dan vanzelf op verstuurd. Vergeten? Zeg het tegen de bot in Grok.</p></div>';
     $('sluit').onclick = function () { $('detail').classList.add('verborgen'); };
     $('kopie').onclick = function () { navigator.clipboard.writeText($('cmail').textContent).then(function () { $('kopie').textContent = 'Gekopieerd'; }); };
+    if ($('kopielink')) $('kopielink').onclick = function () { navigator.clipboard.writeText(s.klantlink).then(function () { $('kopielink').textContent = 'Gekopieerd'; }); };
   }
 
   $('lform').addEventListener('submit', async function (e) {
