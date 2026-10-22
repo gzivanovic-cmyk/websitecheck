@@ -4,6 +4,7 @@
 //
 // Gebruik: node sync.js <map met uit/<id>/-mappen van de checkmachine> [--push]
 //          node sync.js --verstuurd <website of id> [--datum JJJJ-MM-DD] [--push]   (rapport is naar de klant gemaild)
+//          node sync.js <uit-map> --wissen <id> [--push]   (Goran veegde hem weg in zijn overzicht; komt daarna niet meer terug)
 //   bijvoorbeeld: node sync.js ../websitecheck-motor/uit --push
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), { execSync } = require('child_process');
 const HIER = __dirname, ITER = 310000;
@@ -29,13 +30,13 @@ function ontsleutel(tekst) {
 
 const dataDir = path.join(HIER, 'data'); fs.mkdirSync(dataDir, { recursive: true });
 const lijstF = path.join(dataDir, 'lijst.enc');
-let lijst = [];
+let lijst = [], gewist = [];   // gewist: ids die Goran uit zijn overzicht heeft gehaald (die zet sync.js niet meer terug)
 if (fs.existsSync(lijstF)) {
-  try { lijst = ontsleutel(fs.readFileSync(lijstF, 'utf8')).checks || []; }
+  try { const l = ontsleutel(fs.readFileSync(lijstF, 'utf8')); lijst = l.checks || []; gewist = l.gewist || []; }
   catch (e) { console.error('Bestaande lijst niet te openen: klopt het wachtwoord in .password?'); process.exit(1); }
 }
 const bekend = new Set(lijst.map(c => c.id));
-const pos = process.argv.slice(2).filter((a, i, arr) => !a.startsWith('--') && !['--verstuurd', '--datum'].includes(arr[i - 1]));
+const pos = process.argv.slice(2).filter((a, i, arr) => !a.startsWith('--') && !['--verstuurd', '--datum', '--wissen'].includes(arr[i - 1]));
 const uit = path.resolve(pos[0] || path.join(HIER, 'uit'));
 let nieuw = 0;
 for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
@@ -44,6 +45,7 @@ for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
   const r = JSON.parse(fs.readFileSync(rf, 'utf8'));
   const s = r.samenvatting || {};
   if (!s.id) continue;  // alleen rapporten van verwerk.py (echte aanvragen), geen losse testrapporten
+  if (gewist.includes(id)) continue;  // door Goran uit het overzicht gehaald
   const oud = lijst.find(c => c.id === id);
   if (oud && (oud.klantlink || '') === (s.klantlink || '')) continue;  // al bekend en niets nieuws (klantlink erbij of verwijderd)
   fs.writeFileSync(path.join(dataDir, id + '.enc'), versleutel({ id, samenvatting: s, oordeel: r.oordeel, pdf: fs.readFileSync(pf).toString('base64') }));
@@ -59,8 +61,19 @@ if (vi !== -1) {
   kandidaten[0].verstuurd = datum;
   console.log(`Gemarkeerd als verstuurd: ${kandidaten[0].bedrijf || kandidaten[0].host} (${datum})`);
 }
+// uit het overzicht halen: node sync.js <uit-map> --wissen <id>. Het rapport blijft in uit/<id>/ staan.
+const wi = process.argv.indexOf('--wissen');
+if (wi !== -1) {
+  const id = process.argv[wi + 1] || '';
+  if (!/^\d{4}-\d\d-\d\d-\d{4}-[a-z0-9-]{1,80}$/.test(id)) { console.error('Geen geldig id: ' + id); process.exit(2); }
+  const voor = lijst.length;
+  lijst = lijst.filter(c => c.id !== id);
+  if (!gewist.includes(id)) gewist.push(id);
+  const f = path.join(dataDir, id + '.enc'); if (fs.existsSync(f)) fs.unlinkSync(f);
+  console.log(voor > lijst.length ? `Uit het overzicht gehaald: ${id}` : `Stond al niet (meer) in het overzicht: ${id}`);
+}
 lijst.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
-fs.writeFileSync(lijstF, versleutel({ bijgewerkt: new Date().toISOString(), checks: lijst }));
+fs.writeFileSync(lijstF, versleutel({ bijgewerkt: new Date().toISOString(), checks: lijst, gewist }));
 console.log(`Overzicht: ${lijst.length} checks, ${nieuw} nieuw.`);
 
 if (process.argv.includes('--push')) {
