@@ -84,5 +84,5 @@ if (process.argv.includes('--push')) {
   if (!gestaged.trim()) { console.log('Geen wijzigingen'); process.exit(0); }
   sh(`git commit -qm "Websitechecks bijgewerkt ${new Date().toISOString().slice(0, 16).replace('T', ' ')}"`);
   sh('git push -q origin HEAD:main');
-  console.log('Gepusht. Live: https://gzivanovic-cmyk.github.io/websitecheck/');
+  console.log('Gepusht. Het overzicht: https://www.go4itstudio.com/overzicht');
 }
