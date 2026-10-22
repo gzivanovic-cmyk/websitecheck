@@ -1,7 +1,7 @@
 // Websitecheck-overzicht bijwerken: nieuwe rapporten uit uit/<id>/ versleutelen naar data/ en (met --push) naar GitHub zetten.
 // Versleuteling zoals het prospects-dashboard: AES-256-GCM, sleutel via PBKDF2-SHA256 (310000 iteraties) uit het wachtwoord in .password.
 // In de repository komt NOOIT iets onversleuteld: uit/, private/, .password, .password-ais en .psi_key staan in .gitignore.
-// Daarnaast een aparte set voor het AIS-dashboard (dashboard.ais-groep.nl): data-ais/ met alleen de AIS-checks, versleuteld met een eigen
+// Daarnaast een aparte set voor het AIS-dashboard (rapport.ais-groep.nl/dashboard/): data-ais/ met alleen de AIS-checks, versleuteld met een eigen
 // wachtwoord (WEBSITECHECK_AIS_PASSWORD of .password-ais). GO 4IT-checks komen daar nooit in. Zonder AIS-wachtwoord slaat sync.js dit over.
 //
 // Gebruik: node sync.js <map met uit/<id>/-mappen van de checkmachine> [--push]
