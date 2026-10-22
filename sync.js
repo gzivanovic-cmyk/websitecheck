@@ -41,14 +41,15 @@ const uit = path.resolve(pos[0] || path.join(HIER, 'uit'));
 let nieuw = 0;
 for (const id of (fs.existsSync(uit) ? fs.readdirSync(uit) : []).sort()) {
   const rf = path.join(uit, id, 'resultaat.json'), pf = path.join(uit, id, 'rapport.pdf');
-  if (!fs.existsSync(rf) || !fs.existsSync(pf)) continue;
+  if (!fs.existsSync(rf)) continue;
   const r = JSON.parse(fs.readFileSync(rf, 'utf8'));
   const s = r.samenvatting || {};
+  if (!fs.existsSync(pf) && !s.mislukt) continue;   // zonder rapport alleen een mislukte check (met de reden)
   if (!s.id) continue;  // alleen rapporten van verwerk.py (echte aanvragen), geen losse testrapporten
   if (gewist.includes(id)) continue;  // door Goran uit het overzicht gehaald
   const oud = lijst.find(c => c.id === id);
-  if (oud && (oud.klantlink || '') === (s.klantlink || '')) continue;  // al bekend en niets nieuws (klantlink erbij of verwijderd)
-  fs.writeFileSync(path.join(dataDir, id + '.enc'), versleutel({ id, samenvatting: s, oordeel: r.oordeel, pdf: fs.readFileSync(pf).toString('base64') }));
+  if (oud && (oud.klantlink || '') === (s.klantlink || '') && JSON.stringify(oud.meldingen || []) === JSON.stringify(s.meldingen || [])) continue;  // al bekend en niets nieuws
+  fs.writeFileSync(path.join(dataDir, id + '.enc'), versleutel({ id, samenvatting: s, oordeel: r.oordeel, pdf: fs.existsSync(pf) ? fs.readFileSync(pf).toString('base64') : null }));
   if (oud) { Object.assign(oud, s, { verstuurd: oud.verstuurd }); } else { lijst.push(s); nieuw++; }
 }
 // verstuurd registreren: node sync.js --verstuurd <website of id> [--datum JJJJ-MM-DD]
